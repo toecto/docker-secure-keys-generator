@@ -1,0 +1,23 @@
+#!/bin/bash
+
+CA_FILE=ca/ca.pem
+CA_KEY_FILE=ca/ca-key.pem
+
+CLIENT_NAME=${1:-"client"}
+CLIENT_KEY_FILE=$CLIENT_NAME-key.pem
+CLIENT_REQUEST_FILE=$CLIENT_NAME.csr
+CLIENT_CERT_FILE=$CLIENT_NAME-cert.pem
+
+openssl genrsa -out $CLIENT_KEY_FILE 2048
+
+openssl req -subj '/CN=client' -new -key $CLIENT_KEY_FILE -out $CLIENT_REQUEST_FILE
+
+echo extendedKeyUsage = clientAuth > extfile.cnf
+
+openssl x509 -req -days 365 -in $CLIENT_REQUEST_FILE -CA $CA_FILE -CAkey $CA_KEY_FILE \
+  -CAcreateserial -out $CLIENT_CERT_FILE -extfile extfile.cnf
+
+rm $CLIENT_REQUEST_FILE
+rm extfile.cnf
+
+echo Done!

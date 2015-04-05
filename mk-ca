@@ -1,0 +1,12 @@
+#!/bin/bash
+
+mkdir -p ca
+
+CA_FILE=ca/ca.pem
+CA_KEY_FILE=ca/ca-key.pem
+
+openssl genrsa -aes256 -out ca/ca-key.pem 2048
+openssl req -new -x509 -days 365 -key ca/ca-key.pem -sha256 -out ca/ca.pem
+
+echo Done!
+ls -la ca

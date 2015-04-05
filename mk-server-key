@@ -1,0 +1,70 @@
+#!/bin/bash
+
+function print_help() {
+    echo "Usage mk-server-key domain [ip]"
+}
+
+function getIP() {
+    host -4 -t a "$1" | grep address | tail -1 | cut -d " " -f 4
+}
+
+SERVER_HOST="$1"
+if [ -z "$SERVER_HOST" ]; then
+    print_help
+    exit 1
+fi
+
+SERVER_IP="$2"
+if [ -z "$SERVER_IP" ]; then
+    SERVER_IP=$(getIP "$SERVER_HOST")
+    echo $SERVER_HOST auto resolved to $SERVER_IP
+fi
+if [ -z "$SERVER_IP" ]; then
+    print_help
+    exit 1
+fi
+
+CA_FILE=ca/ca.pem
+CA_KEY_FILE=ca/ca-key.pem
+
+SERVER_KEY_FILE=$SERVER_HOST-key.pem
+SERVER_REQUEST_FILE=$SERVER_HOST.csr
+SERVER_CERT_FILE=$SERVER_HOST-cert.pem
+
+openssl genrsa -out $SERVER_KEY_FILE 2048
+openssl req -subj "/CN=$SERVER_HOST" -new -key $SERVER_KEY_FILE -out $SERVER_REQUEST_FILE
+
+echo subjectAltName = IP:$SERVER_IP,IP:127.0.0.1 > extfile.cnf
+
+openssl x509 -req -days 365 -in $SERVER_REQUEST_FILE -CA $CA_FILE -CAkey $CA_KEY_FILE \
+    -CAcreateserial -out $SERVER_CERT_FILE -extfile extfile.cnf
+
+rm $SERVER_REQUEST_FILE
+rm extfile.cnf
+
+chmod 400 $SERVER_KEY_FILE
+chmod 444 $SERVER_CERT_FILE
+
+cat <<EOF
+#!/bin/bash
+# Done!
+# Next sugessted steps are
+
+mkdir -p /etc/docker/keys
+cp $(pwd)/$SERVER_KEY_FILE /etc/docker/
+cp $(pwd)/$SERVER_CERT_FILE /etc/docker/
+cp $(pwd)/$CA_FILE /etc/docker/
+
+cat >> /etc/default/docker <<eof
+
+DOCKER_OPTS="--tlsverify \\
+        --tlscacert=/etc/docker/ca.pem \\
+        --tlscert=/etc/docker/$SERVER_CERT_FILE \\
+        --tlskey=/etc/docker/$SERVER_KEY_FILE \\
+        -H tcp://0.0.0.0:2376 \\
+        -H unix:///var/run/docker.sock"
+
+eof
+EOF
+
+
