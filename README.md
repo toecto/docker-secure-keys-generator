@@ -1,7 +1,7 @@
 # docker-secure-keys-generator
 Simple commands that help to generate TSK keys for docker server and docker api client to secure docker API connection
 
-Wery hand to setup docker engines in shipyard
+Wery handy to setup docker engines in the Shipyard
 
 ## Usage:
 
